@@ -22,11 +22,24 @@ def get_client():
 def get_next_text(client, book):
     # Get the most recent post
     posts = client.app.bsky.feed.post.list(client.me.did, limit=1)
-    post = list(posts.records.items())[0][1]
+    posts = posts.records
+    posts = list(posts.items())
 
-    # Where does the next post start?
-    post_index = book.index(post.text)
-    start_index = post_index + len(post.text)
+    if len(posts) == 0:
+        start_index = 0
+    else:
+        post = posts[0][1]
+        # Where does the next post start?
+        try:
+            post_index = book.index(post.text)
+        except ValueError:
+            # The most recent post is not in the book, start over
+            start_index = 0
+        else:
+            start_index = post_index + len(post.text)
+
+    if start_index == 0:
+        send_dm(client, f"Starting {Path(book_name).stem}")
 
     # Get the next bit of text and make sure that we didn't split a word
     next_text = book[start_index : start_index + post_size]
