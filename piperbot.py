@@ -4,7 +4,6 @@ from atproto import Client, client_utils, IdResolver, models
 from pathlib import Path
 import os
 
-book_name = '/Users/amundsen/src/piperbot/Four-Day Planet.txt'
 post_size = 300
 
 def get_client():
@@ -46,6 +45,8 @@ def get_next_text(client, book):
     if next_text[-1] not in (" ", "\n"):
         # We split a word
         next_text = ' '.join(next_text.split(' ')[:-1])
+    next_text = next_text.lstrip()
+
     return next_text
 
 def send_dm(client, msg):
@@ -67,6 +68,7 @@ if __name__ == '__main__':
     client = get_client()
 
     # Read in the book
+    book_name = os.environ.get("BSKY_BOOK_NAME")
     inf = open(book_name)
     book = inf.read()
 
