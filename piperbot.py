@@ -3,6 +3,7 @@
 from atproto import Client, client_utils, IdResolver, models
 from pathlib import Path
 import os
+import traceback
 
 post_size = 300
 
@@ -66,17 +67,21 @@ def post_text(client, text):
 if __name__ == '__main__':
     # Connect to bluesky
     client = get_client()
+    try:
+        # Read in the book
+        book_name = os.environ.get("BSKY_BOOK_NAME")
+        inf = open(book_name)
+        book = inf.read()
 
-    # Read in the book
-    book_name = os.environ.get("BSKY_BOOK_NAME")
-    inf = open(book_name)
-    book = inf.read()
+        next_text = get_next_text(client, book)
 
-    next_text = get_next_text(client, book)
-
-    if next_text == '':
-        # We're done with story, tell someone via a Bluesky DM
-        send_dm(client, f"All done posting {Path(book_name).stem}")
-    else:
-        # Post the next sentence
-        post_text(client, next_text.strip())
+        if next_text == '':
+            # We're done with story, tell someone via a Bluesky DM
+            send_dm(client, f"All done posting {Path(book_name).stem}")
+        else:
+            # Post the next sentence
+            post_text(client, next_text.strip())
+    except Exception as exp:
+        trace = "\n" + "\n".join(traceback.format_exception(exp))
+        err_message = f"Error in piperbot: {trace}"
+        send_dm(client, err_message)
