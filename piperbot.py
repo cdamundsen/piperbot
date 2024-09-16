@@ -5,18 +5,30 @@ from pathlib import Path
 import os
 import traceback
 
+session_file_name = "session.txt"
+
 post_size = 300
 
 def get_client():
     uname = os.environ.get('BSKY_NAME')
     pw = os.environ.get('BSKY_PASS')
-    id_resolver = IdResolver()
-    did = id_resolver.handle.resolve(uname)
-    did_doc = id_resolver.did.resolve(did)
-    pds_url = did_doc.get_pds_endpoint()
-    client = Client(base_url=pds_url)
-    client.login(uname, pw)
+    client = Client()
+    if os.path.isfile(session_file_name):
+        with open(session_file_name) as inf:
+            session_str = inf.read()
+        try:
+            client.login(session_string=session_str)
+        except: # This should catch the proper exception
+            client.login(uname, pw)
+    else:
+        client.login(uname, pw)
     return client
+
+
+def save_session_string(client):
+    session_string = client.export_session_string()
+    with open(session_file_name, 'w') as outf:
+        outf.write(session_string)
 
 
 def get_next_text(client, book):
@@ -51,14 +63,31 @@ def get_next_text(client, book):
     return next_text
 
 def send_dm(client, msg):
+    """
+    Sends a direct message to the bsky user specified in BSKY_DM_TARGET.
+    Used when starting a book, when the last of the book has been posted,
+    and if an error occurs after client creation
+    """
     dm_target = os.environ.get("BSKY_DM_TARGET")
     id_resolver = IdResolver()
     chat_to = id_resolver.handle.resolve(dm_target)
-    convo = client.chat.bsky.convo.get_convo_for_members(
-        models.ChatBskyConvoGetConvoForMembers.Params(members=[chat_to]),)
-    client.chat.bsky.convo.send_message(
-        models.ChatBskyConvoSendMessage.Data(convo_id=convo.convo.id,message=models.ChatBskyConvoDefs.MessageInput(
-        text=msg,),))
+
+    dm_client = client.with_bsky_chat_proxy()
+    dm = dm_client.chat.bsky.convo
+
+    convo = dm.get_convo_for_members(
+        models.ChatBskyConvoGetConvoForMembers.Params(members=[chat_to]),
+    ).convo
+
+    dm.send_message(
+        models.ChatBskyConvoSendMessage.Data(
+            convo_id=convo.id,
+            message=models.ChatBskyConvoDefs.MessageInput(
+                text=msg,
+            ),
+        )
+    )
+
 
 def post_text(client, text):
     p = client_utils.TextBuilder().text(text)
@@ -81,7 +110,9 @@ if __name__ == '__main__':
         else:
             # Post the next sentence
             post_text(client, next_text.strip())
+            save_session_string(client)
     except Exception as exp:
+        # This only works if the client was successfully created
         trace = "\n" + "\n".join(traceback.format_exception(exp))
         err_message = f"Error in piperbot: {trace}"
         send_dm(client, err_message)
