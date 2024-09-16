@@ -12,11 +12,6 @@ post_size = 300
 def get_client():
     uname = os.environ.get('BSKY_NAME')
     pw = os.environ.get('BSKY_PASS')
-    #id_resolver = IdResolver()
-    #did = id_resolver.handle.resolve(uname)
-    #did_doc = id_resolver.did.resolve(did)
-    #pds_url = did_doc.get_pds_endpoint()
-    #client = Client(base_url=pds_url)
     client = Client()
     if os.path.isfile(session_file_name):
         with open(session_file_name) as inf:
